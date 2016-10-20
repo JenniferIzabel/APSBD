@@ -6,6 +6,12 @@
 package Escalonador;
 
 import Main.Conexao;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -15,25 +21,50 @@ public class Escalonador extends Thread {
 
     private Thread t2;
     private int numeroConsumo;
-    private Conexao con;
+    private Conexao conexao;
     private int inicio;
     private int fim;
     private boolean flag = true;
 
     public Escalonador(int numeroConsumo, Conexao con) {
         this.numeroConsumo = numeroConsumo;
-        this.con = con;
-        this.inicio = 0;
+        this.conexao = con;
+        encontraInicio();
         this.fim = this.inicio + this.numeroConsumo;
     }
 
+    public void setInicio(int inicio) {
+        this.inicio = inicio;
+    }
+
+    public void setFim(int fim) {
+        this.fim = fim;
+    }
+
+    private void encontraInicio() {
+        Connection con = conexao.getConnection();
+        String sql = "SELECT MIN(idoperacao) FROM schedule;";
+        try {
+            PreparedStatement ps;
+            ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            rs.next();
+            this.inicio = rs.getInt(1);
+        } catch (SQLException ex) {
+            Logger.getLogger(ListaTuplas.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }
+
     public void run() {
-        int ultimoIndice = 0;
-        //System.out.println( "Criando transacoes e gravando no banco..." );
+
         try {
             do {
-                ListaTuplasDao listaTuplasDao = new ListaTuplasDao(con, inicio, fim, numeroConsumo);
+                ListaTuplas listaTuplas = new ListaTuplas(conexao, inicio, fim, numeroConsumo);
+                listaTuplas.selectBlocoTuplas();
 
+                this.inicio = this.fim;
+                this.fim += this.numeroConsumo;
                 Thread.sleep(5 * 1000);
             } while (flag);
 
